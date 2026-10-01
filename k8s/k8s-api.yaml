@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: atplcrm-api
+  namespace: atplcrm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: atplcrm-api
+  template:
+    metadata:
+      labels:
+        app: atplcrm-api
+    spec:
+      containers:
+        - name: api
+          image: chinninaidu/atplcrm-api:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: APP_MODE
+              value: "local-demo"
+            - name: INSTANCE_TYPE
+              value: "INTERNATIONAL"
+            - name: TENANT_KEY
+              value: "atplcrm"
+            - name: APP_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: atplcrm-secrets
+                  key: APP_SECRET
+            - name: POSTGRES_HOST
+              value: "postgres"
+            - name: POSTGRES_DB
+              value: "atplcrm"
+            - name: POSTGRES_USER
+              value: "atplcrm"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: atplcrm-secrets
+                  key: POSTGRES_PASSWORD
+            - name: REDIS_URL
+              value: "redis://redis:6379/0"
+            - name: ARTIFACT_STORAGE_ROOT
+              value: "/data/artifacts"
+            - name: ARTIFACT_MAX_UPLOAD_MB
+              value: "10"
+          volumeMounts:
+            - name: artifacts-storage
+              mountPath: /data/artifacts
+          readinessProbe:
+            httpGet:
+              path: /api/health/
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /api/health/
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: artifacts-storage
+          persistentVolumeClaim:
+            claimName: artifacts-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: atplcrm-api
+  namespace: atplcrm
+spec:
+  selector:
+    app: atplcrm-api
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+  type: ClusterIP

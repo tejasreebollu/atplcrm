@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: atplcrm-scheduler
+  namespace: atplcrm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: atplcrm-scheduler
+  template:
+    metadata:
+      labels:
+        app: atplcrm-scheduler
+    spec:
+      containers:
+        - name: scheduler
+          image: chinninaidu/atplcrm-api:latest
+          command:
+            - celery
+            - -A
+            - atplcrm.tasks.celery_app
+            - beat
+            - --loglevel=info
+            - --schedule=/tmp/celerybeat-schedule
+          env:
+            - name: APP_MODE
+              value: "local-demo"
+            - name: INSTANCE_TYPE
+              value: "INTERNATIONAL"
+            - name: TENANT_KEY
+              value: "atplcrm"
+            - name: APP_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: atplcrm-secrets
+                  key: APP_SECRET
+            - name: POSTGRES_HOST
+              value: "postgres"
+            - name: POSTGRES_DB
+              value: "atplcrm"
+            - name: POSTGRES_USER
+              value: "atplcrm"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: atplcrm-secrets
+                  key: POSTGRES_PASSWORD
+            - name: DEMO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: atplcrm-secrets
+                  key: DEMO_PASSWORD
+            - name: REDIS_URL
+              value: "redis://redis:6379/0"
+            - name: ARTIFACT_STORAGE_ROOT
+              value: "/data/artifacts"
+            - name: ARTIFACT_MAX_UPLOAD_MB
+              value: "10"
